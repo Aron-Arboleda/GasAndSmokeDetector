@@ -7,6 +7,10 @@ LCD_I2C lcd(0x27);
 #define Buzzer 3
 #define Sensor A1
 
+#define SafeIndicator 4
+#define ModerateIndicator 5
+#define DangerIndicator 6
+
 // Global variables to store past sensor values
 int previousSensorValue = 0;
 
@@ -14,12 +18,51 @@ const int differenceSize = 5; // Number of past differences to store
 int differenceHistory[differenceSize] = {0}; // Array to store past differences
 int differenceHistoryIndex = 0; // Index for circular buffer
 
+void noMelody() {
+  
+}
+
+void moderateMelody() {
+  int notes[] = {659, 659, 523, 659}; // E5, E5, C5, E5
+  int duration = 200;
+
+  for (int i = 0; i < 4; i++) {
+    tone(Buzzer, notes[i]);
+    delay(duration);
+    noTone(Buzzer);
+    delay(80);
+  }
+}
+
+// 🔴 DANGEROUS - urgent melody
+void dangerousMelody() {
+  int notes[] = {988, 880, 988, 1046, 988, 880}; // B5, A5, B5, C6, B5, A5
+  int duration = 120;
+
+  for (int i = 0; i < 6; i++) {
+    tone(Buzzer, notes[i]);
+    delay(duration);
+    noTone(Buzzer);
+    delay(60); // Short pause = faster rhythm
+  }
+}
+
+void resetLightIndicators(){
+  digitalWrite(SafeIndicator, LOW);
+  digitalWrite(ModerateIndicator, LOW);
+  digitalWrite(DangerIndicator, LOW);
+}
+
 void setup() {
   Serial.begin(9200);
   lcd.begin();
   lcd.backlight();
   pinMode(LED, OUTPUT);
   pinMode(Buzzer, OUTPUT);
+  pinMode(Sensor, INPUT);
+  pinMode(SafeIndicator, OUTPUT);
+  pinMode(ModerateIndicator, OUTPUT);
+  pinMode(DangerIndicator, OUTPUT);
 }
 
 void resetIndicators(){
@@ -44,31 +87,54 @@ void setSafe(){
   clearLCDBottomRow();
   lcd.setCursor(0, 1);
   lcd.print("Gas: None");
+  resetLightIndicators();
+  digitalWrite(SafeIndicator, HIGH);
   delay(400);
 }
-
-
 
 void LCDSetWarningText(String text){
   lcd.setCursor(0, 1);
   lcd.print(text);
 }
 
-void warn(int gasNumber = 0) {
+void showLightValue(int level){
+  resetLightIndicators();
+  if (level == 0){
+    digitalWrite(SafeIndicator, HIGH);
+    digitalWrite(ModerateIndicator, LOW);
+    digitalWrite(DangerIndicator, LOW);
+  } else if (level == 1){
+    digitalWrite(SafeIndicator, LOW);
+    digitalWrite(ModerateIndicator, HIGH);
+    digitalWrite(DangerIndicator, LOW);
+  } else if (level == 2){
+    digitalWrite(SafeIndicator, LOW);
+    digitalWrite(ModerateIndicator, LOW);
+    digitalWrite(DangerIndicator, HIGH);
+  }
+}
+
+void playTone(int level){
+  if (level == 0){
+    noMelody();
+  } else if (level == 1){
+    moderateMelody();
+  } else if (level == 2){
+    dangerousMelody();
+  }
+}
+
+void warn(int level) {
   digitalWrite(LED, HIGH);
   digitalWrite(Buzzer, HIGH);
   clearLCDBottomRow();
   int delayTime = 0;
-  if (gasNumber == 0) {
-    LCDSetWarningText("Gas: BUTANE!");
-    delayTime = 3000;
-  } else if (gasNumber == 1) {
-    LCDSetWarningText("Gas: ETHANOL!");
-    delayTime = 2000;
-  } else if (gasNumber == 2) {
-    LCDSetWarningText("Gas: SMOKE!");
-    delayTime = 1000;
-  }
+  
+  showLightValue(level);
+  LCDSetWarningText("GAS DETECTED!");
+  playTone(level);
+  delayTime = 1000;
+  
   delay(delayTime);
   reset(); 
 }
@@ -95,10 +161,10 @@ void showValue(int difference){
 
 // int counter = 0;
 
-boolean checkForButane(){
+boolean checkForGas(){
   int butaneDifferenceCount = 0;
   for (int i = 0; i < differenceSize; i++){
-    if (differenceHistory[i] > 150){
+    if (differenceHistory[i] > 7){
       butaneDifferenceCount++;
     }
   }
@@ -106,6 +172,18 @@ boolean checkForButane(){
     return true; // Butane detected
   } else {
     return false; // No butane detected
+  }
+}
+
+int checkForLevel(int difference){
+  if (difference <= 4){
+    return 0; // Safe
+  } else if (difference > 8 && difference <= 100){
+    return 1; // Moderate
+  } else if (difference > 100){
+    return 2; // Danger
+  } else {
+    return -1; // Invalid value
   }
 }
 
@@ -137,6 +215,8 @@ boolean checkForSmoke(){
   }
 }
 
+
+
 void loop() {
   int currentValue = analogRead(Sensor);
 
@@ -151,24 +231,16 @@ void loop() {
   
   showValue(difference);
   
-  boolean butaneDetected = checkForButane();
-  boolean ethanolDetected = checkForEthanol();
-  boolean smokeDetected = checkForSmoke();
+  boolean gasDetected = checkForGas();
+  int level = checkForLevel(difference);
 
-  if (butaneDetected) { // Gas detection (large spike)
-    recordDataWithSerialMonitor("BUTANE");
-    warn(0);
-  } else if (ethanolDetected) { // Smoke detection (small spike)
-    recordDataWithSerialMonitor("ETHANOL");
-    warn(1);
-  } else if (smokeDetected) { // Smoke detection (small spike)
-    recordDataWithSerialMonitor("SMOKE");
-    warn(2);
+  if (gasDetected) { // Gas detection (large spike)    
+    recordDataWithSerialMonitor("GAS DETECTED!");
+    warn(level);
   } else {
     recordDataWithSerialMonitor("SAFE");
     setSafe();
   }
-
 }
 
 
