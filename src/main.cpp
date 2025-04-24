@@ -11,39 +11,41 @@ LCD_I2C lcd(0x27);
 #define ModerateIndicator 5
 #define DangerIndicator 6
 
-// Global variables to store past sensor values
 int previousSensorValue = 0;
 
-const int differenceSize = 5; // Number of past differences to store
-int differenceHistory[differenceSize] = {0}; // Array to store past differences
-int differenceHistoryIndex = 0; // Index for circular buffer
-
-void noMelody() {
-  
-}
+const int differenceSize = 5;
+int differenceHistory[differenceSize] = {0}; 
+int differenceHistoryIndex = 0;
 
 void moderateMelody() {
-  int notes[] = {659, 659, 523, 659}; // E5, E5, C5, E5
-  int duration = 200;
+  // int notes[] = {659, 659, 523, 659}; // E5, E5, C5, E5
+  // int duration = 200;
 
+  // for (int i = 0; i < 4; i++) {
+  //   tone(Buzzer, notes[i]);
+  //   delay(duration);
+  //   noTone(Buzzer);
+  //   delay(80);
+  // }
   for (int i = 0; i < 4; i++) {
-    tone(Buzzer, notes[i]);
-    delay(duration);
-    noTone(Buzzer);
-    delay(80);
+    digitalWrite(Buzzer, HIGH);
+    delay(800);
   }
 }
 
-// 🔴 DANGEROUS - urgent melody
 void dangerousMelody() {
-  int notes[] = {988, 880, 988, 1046, 988, 880}; // B5, A5, B5, C6, B5, A5
-  int duration = 120;
+  // int notes[] = {988, 880, 988, 1046, 988, 880}; // B5, A5, B5, C6, B5, A5
+  // int duration = 120;
 
-  for (int i = 0; i < 6; i++) {
-    tone(Buzzer, notes[i]);
-    delay(duration);
-    noTone(Buzzer);
-    delay(60); // Short pause = faster rhythm
+  // for (int i = 0; i < 6; i++) {
+  //   tone(Buzzer, notes[i]);
+  //   delay(duration);
+  //   noTone(Buzzer);
+  //   delay(60); // Short pause = faster rhythm
+  // }
+  for (int i = 0; i < 4; i++) {
+    digitalWrite(Buzzer, HIGH);
+    delay(400);
   }
 }
 
@@ -51,18 +53,6 @@ void resetLightIndicators(){
   digitalWrite(SafeIndicator, LOW);
   digitalWrite(ModerateIndicator, LOW);
   digitalWrite(DangerIndicator, LOW);
-}
-
-void setup() {
-  Serial.begin(9200);
-  lcd.begin();
-  lcd.backlight();
-  pinMode(LED, OUTPUT);
-  pinMode(Buzzer, OUTPUT);
-  pinMode(Sensor, INPUT);
-  pinMode(SafeIndicator, OUTPUT);
-  pinMode(ModerateIndicator, OUTPUT);
-  pinMode(DangerIndicator, OUTPUT);
 }
 
 void resetIndicators(){
@@ -114,10 +104,8 @@ void showLightValue(int level){
   }
 }
 
-void playTone(int level){
-  if (level == 0){
-    noMelody();
-  } else if (level == 1){
+void buzz(int level){
+  if (level == 1){
     moderateMelody();
   } else if (level == 2){
     dangerousMelody();
@@ -128,14 +116,12 @@ void warn(int level) {
   digitalWrite(LED, HIGH);
   digitalWrite(Buzzer, HIGH);
   clearLCDBottomRow();
-  int delayTime = 0;
   
   showLightValue(level);
   LCDSetWarningText("GAS DETECTED!");
-  playTone(level);
-  delayTime = 1000;
+  buzz(level);
   
-  delay(delayTime);
+  delay(1000);
   reset(); 
 }
 
@@ -176,9 +162,9 @@ boolean checkForGas(){
 }
 
 int checkForLevel(int difference){
-  if (difference <= 4){
+  if (difference <= 8){
     return 0; // Safe
-  } else if (difference > 8 && difference <= 100){
+  } else if (difference > 7 && difference <= 100){
     return 1; // Moderate
   } else if (difference > 100){
     return 2; // Danger
@@ -187,35 +173,17 @@ int checkForLevel(int difference){
   }
 }
 
-boolean checkForEthanol(){
-  int ethanolDifferenceCount = 0;
-  for (int i = 0; i < differenceSize; i++){
-    if (differenceHistory[i] > 11 && differenceHistory[i] <= 100){
-      ethanolDifferenceCount++;
-    }
-  }
-  if (ethanolDifferenceCount >= 2){
-    return true; // Ethanol detected
-  } else {
-    return false; // No ethanol detected
-  }
+void setup() {
+  Serial.begin(9200);
+  lcd.begin();
+  lcd.backlight();
+  pinMode(LED, OUTPUT);
+  pinMode(Buzzer, OUTPUT);
+  pinMode(Sensor, INPUT);
+  pinMode(SafeIndicator, OUTPUT);
+  pinMode(ModerateIndicator, OUTPUT);
+  pinMode(DangerIndicator, OUTPUT);
 }
-
-boolean checkForSmoke(){
-  int smokeDifferenceCount = 0;
-  for (int i = 0; i < differenceSize; i++){
-    if (differenceHistory[i] > 4 && differenceHistory[i] <= 10){
-      smokeDifferenceCount++;
-    }
-  }
-  if (smokeDifferenceCount >= 3){
-    return true; // Smoke detected
-  } else {
-    return false; // No smoke detected
-  }
-}
-
-
 
 void loop() {
   int currentValue = analogRead(Sensor);
@@ -242,11 +210,3 @@ void loop() {
     setSafe();
   }
 }
-
-
-
-// int differencesSum = 0;
-//   for (int i = 0; i < differenceSize; i++) {
-//     differencesSum += differenceHistory[i];
-//   }
-//   int averageDifference = differencesSum / differenceSize;
