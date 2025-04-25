@@ -29,7 +29,9 @@ void moderateMelody() {
   // }
   for (int i = 0; i < 4; i++) {
     digitalWrite(Buzzer, HIGH);
-    delay(800);
+    delay(400);
+    digitalWrite(Buzzer, LOW);
+    delay(400);
   }
 }
 
@@ -45,7 +47,9 @@ void dangerousMelody() {
   // }
   for (int i = 0; i < 4; i++) {
     digitalWrite(Buzzer, HIGH);
-    delay(400);
+    delay(200);
+    digitalWrite(Buzzer, LOW);
+    delay(200);
   }
 }
 
@@ -76,7 +80,7 @@ void setSafe(){
   resetIndicators();
   clearLCDBottomRow();
   lcd.setCursor(0, 1);
-  lcd.print("Gas: None");
+  lcd.print("No Gas Detected");
   resetLightIndicators();
   digitalWrite(SafeIndicator, HIGH);
   delay(400);
@@ -140,7 +144,7 @@ void recordDataWithSerialMonitor(String label) {
 
 void showValue(int difference){
   lcd.setCursor(0, 0);
-  lcd.print("Difference :");
+  lcd.print("Value : ");
   lcd.print(difference);
   lcd.print("  ");
 }
