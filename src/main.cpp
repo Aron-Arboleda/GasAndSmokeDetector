@@ -18,15 +18,6 @@ int differenceHistory[differenceSize] = {0};
 int differenceHistoryIndex = 0;
 
 void moderateMelody() {
-  // int notes[] = {659, 659, 523, 659}; // E5, E5, C5, E5
-  // int duration = 200;
-
-  // for (int i = 0; i < 4; i++) {
-  //   tone(Buzzer, notes[i]);
-  //   delay(duration);
-  //   noTone(Buzzer);
-  //   delay(80);
-  // }
   for (int i = 0; i < 4; i++) {
     digitalWrite(Buzzer, HIGH);
     delay(400);
@@ -36,15 +27,6 @@ void moderateMelody() {
 }
 
 void dangerousMelody() {
-  // int notes[] = {988, 880, 988, 1046, 988, 880}; // B5, A5, B5, C6, B5, A5
-  // int duration = 120;
-
-  // for (int i = 0; i < 6; i++) {
-  //   tone(Buzzer, notes[i]);
-  //   delay(duration);
-  //   noTone(Buzzer);
-  //   delay(60); // Short pause = faster rhythm
-  // }
   for (int i = 0; i < 4; i++) {
     digitalWrite(Buzzer, HIGH);
     delay(200);
@@ -149,8 +131,6 @@ void showValue(int difference){
   lcd.print("  ");
 }
 
-// int counter = 0;
-
 boolean checkForGas(){
   int butaneDifferenceCount = 0;
   for (int i = 0; i < differenceSize; i++){
@@ -159,14 +139,14 @@ boolean checkForGas(){
     }
   }
   if (butaneDifferenceCount >= 1){
-    return true; // Butane detected
+    return true;
   } else {
-    return false; // No butane detected
+    return false;
   }
 }
 
 int checkForLevel(int difference){
-  if (difference <= 8){
+  if (difference < 8){
     return 0; // Safe
   } else if (difference > 7 && difference <= 100){
     return 1; // Moderate
@@ -198,7 +178,7 @@ void loop() {
   differenceHistory[differenceHistoryIndex] = difference;
   differenceHistoryIndex++;
   if (differenceHistoryIndex >= differenceSize) {
-    differenceHistoryIndex = 0; // Reset index if it exceeds the size
+    differenceHistoryIndex = 0;
   }
   
   showValue(difference);
@@ -206,7 +186,7 @@ void loop() {
   boolean gasDetected = checkForGas();
   int level = checkForLevel(difference);
 
-  if (gasDetected) { // Gas detection (large spike)    
+  if (gasDetected) {
     recordDataWithSerialMonitor("GAS DETECTED!");
     warn(level);
   } else {
