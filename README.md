@@ -24,7 +24,10 @@ This project is an Arduino-based gas and smoke detector designed as part of a fi
 The circuit connects the MQ2 sensor, LCD1602 screen, LED, and buzzer to the Arduino Uno. Ensure proper wiring and connections as per the pin definitions in the code.
 
 ![Circuit Diagram](assets/diagram.png)
-(ctto: [Science Buddies](https://www.youtube.com/watch?v=hSYCt7LrYxQ))
+
+## Schematic Diagram
+
+![Circuit Diagram](assets/schematic_diagram.png)
 
 ### Credits
 
