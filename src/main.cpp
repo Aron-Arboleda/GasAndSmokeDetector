@@ -3,7 +3,6 @@
 
 LCD_I2C lcd(0x27);
 
-#define LED 2
 #define Buzzer 3
 #define Sensor A1
 
@@ -13,155 +12,122 @@ LCD_I2C lcd(0x27);
 
 int previousSensorValue = 0;
 
-const int differenceSize = 5;
-int differenceHistory[differenceSize] = {0}; 
-int differenceHistoryIndex = 0;
+enum Thresholds {
+  SAFE_THRESHOLD = 100,
+  MODERATE_THRESHOLD = 400,
+  DIFFERENCE_THRESHOLD = 7
+};
 
-void moderateMelody() {
-  for (int i = 0; i < 4; i++) {
-    digitalWrite(Buzzer, HIGH);
-    delay(400);
+enum GasLevel {
+  SAFE = 0,
+  MODERATE = 1,
+  DANGEROUS = 2
+};
+
+unsigned long buzzPrevTime = 0;
+bool buzzState = LOW;
+int buzzCount = 0;
+bool isBuzzing = false;
+GasLevel buzzingLevel = SAFE;
+
+void updateBuzzerControl() {
+  unsigned long currentMillis = millis();
+  unsigned int interval = (buzzingLevel == MODERATE) ? 400 : 200;
+
+  if (isBuzzing && buzzCount < 4) {
+    if (currentMillis - buzzPrevTime >= interval) {
+      buzzPrevTime = currentMillis;
+      buzzState = !buzzState;
+      digitalWrite(Buzzer, buzzState);
+      if (!buzzState) buzzCount++;
+    }
+  } else {
+    isBuzzing = false;
+    buzzCount = 0;
     digitalWrite(Buzzer, LOW);
-    delay(400);
   }
 }
 
-void dangerousMelody() {
-  for (int i = 0; i < 4; i++) {
-    digitalWrite(Buzzer, HIGH);
-    delay(200);
-    digitalWrite(Buzzer, LOW);
-    delay(200);
-  }
-}
-
-void resetLightIndicators(){
+void resetLightIndicators() {
   digitalWrite(SafeIndicator, LOW);
   digitalWrite(ModerateIndicator, LOW);
   digitalWrite(DangerIndicator, LOW);
 }
 
-void resetIndicators(){
-  digitalWrite(LED, LOW);
-  digitalWrite(Buzzer, LOW);
-}
-
-void reset(){
-  resetIndicators();
-  for (int i = 0; i < differenceSize; i++) {
-    differenceHistory[i] = 0;
-  }
-}
-
 void clearLCDBottomRow() {
-  lcd.setCursor(0, 1);      
-  lcd.print("                "); 
+  lcd.setCursor(0, 1);
+  lcd.print("                ");
 }
 
-void setSafe(){
-  resetIndicators();
+void setSafe() {
   clearLCDBottomRow();
   lcd.setCursor(0, 1);
   lcd.print("No Gas Detected");
-  resetLightIndicators();
+
   digitalWrite(SafeIndicator, HIGH);
-  delay(400);
+  digitalWrite(ModerateIndicator, LOW);
+  digitalWrite(DangerIndicator, LOW);
 }
 
-void LCDSetWarningText(String text){
+void LCDSetWarningText(String text) {
   lcd.setCursor(0, 1);
   lcd.print(text);
 }
 
-void showLightValue(int level){
+void showLightLevel(GasLevel level) {
   resetLightIndicators();
-  if (level == 0){
-    digitalWrite(SafeIndicator, HIGH);
-    digitalWrite(ModerateIndicator, LOW);
-    digitalWrite(DangerIndicator, LOW);
-  } else if (level == 1){
-    digitalWrite(SafeIndicator, LOW);
+  if (level == MODERATE) {
     digitalWrite(ModerateIndicator, HIGH);
-    digitalWrite(DangerIndicator, LOW);
-  } else if (level == 2){
-    digitalWrite(SafeIndicator, LOW);
-    digitalWrite(ModerateIndicator, LOW);
+  } else if (level == DANGEROUS) {
     digitalWrite(DangerIndicator, HIGH);
   }
 }
 
-void buzz(int level){
-  if (level == 1){
-    moderateMelody();
-  } else if (level == 2){
-    dangerousMelody();
+void warn(GasLevel level) {
+  clearLCDBottomRow();
+  LCDSetWarningText("GAS DETECTED!");
+  showLightLevel(level);
+
+  if (!isBuzzing) {
+    isBuzzing = true;
+    buzzingLevel = level;
+    buzzCount = 0;
+    buzzState = LOW;
+    buzzPrevTime = millis();
   }
 }
 
-void warn(int level) {
-  digitalWrite(LED, HIGH);
-  digitalWrite(Buzzer, HIGH);
-  clearLCDBottomRow();
-  
-  showLightValue(level);
-  LCDSetWarningText("GAS DETECTED!");
-  buzz(level);
-  
-  delay(1000);
-  reset(); 
-}
-
-void recordDataWithSerialMonitor(String label) {
+void recordDataWithSerialMonitor(String label, int currentValue, int difference) {
   Serial.print("Label: ");
   Serial.print(label);
-  Serial.print(", History: ");
-  for (int i = 0; i < differenceSize; i++) {
-    Serial.print(differenceHistory[i]);
-    if (i < differenceSize - 1) {
-      Serial.print(", ");
-    }
-  }
-  Serial.println();
+  Serial.print(", Value: ");
+  Serial.print(currentValue);
+  Serial.print(", Difference: ");
+  Serial.println(difference);
 }
 
-void showValue(int difference){
+void showValueOnLCD(int value) {
   lcd.setCursor(0, 0);
   lcd.print("Value : ");
-  lcd.print(difference);
+  lcd.print(value);
   lcd.print("  ");
 }
 
-boolean checkForGas(){
-  int butaneDifferenceCount = 0;
-  for (int i = 0; i < differenceSize; i++){
-    if (differenceHistory[i] > 7){
-      butaneDifferenceCount++;
-    }
-  }
-  if (butaneDifferenceCount >= 1){
-    return true;
-  } else {
-    return false;
-  }
+boolean checkForGas(int currentValue, int difference) {
+  return (currentValue >= SAFE_THRESHOLD || difference > DIFFERENCE_THRESHOLD);
 }
 
-int checkForLevel(int difference){
-  if (difference < 8){
-    return 0; // Safe
-  } else if (difference > 7 && difference <= 100){
-    return 1; // Moderate
-  } else if (difference > 100){
-    return 2; // Danger
-  } else {
-    return -1; // Invalid value
+GasLevel checkForLevel(int value) {
+  if (value > MODERATE_THRESHOLD) {
+    return DANGEROUS;
   }
+  return MODERATE;
 }
 
 void setup() {
   Serial.begin(9200);
   lcd.begin();
   lcd.backlight();
-  pinMode(LED, OUTPUT);
   pinMode(Buzzer, OUTPUT);
   pinMode(Sensor, INPUT);
   pinMode(SafeIndicator, OUTPUT);
@@ -171,26 +137,22 @@ void setup() {
 
 void loop() {
   int currentValue = analogRead(Sensor);
-
   int difference = currentValue - previousSensorValue;
-  previousSensorValue = currentValue; 
 
-  differenceHistory[differenceHistoryIndex] = difference;
-  differenceHistoryIndex++;
-  if (differenceHistoryIndex >= differenceSize) {
-    differenceHistoryIndex = 0;
-  }
-  
-  showValue(difference);
-  
-  boolean gasDetected = checkForGas();
-  int level = checkForLevel(difference);
+  showValueOnLCD(currentValue);
+  boolean gasDetected = checkForGas(currentValue, difference);
 
   if (gasDetected) {
-    recordDataWithSerialMonitor("GAS DETECTED!");
+    recordDataWithSerialMonitor("GAS DETECTED!", currentValue, difference);
+    GasLevel level = checkForLevel(currentValue);
     warn(level);
   } else {
-    recordDataWithSerialMonitor("SAFE");
+    recordDataWithSerialMonitor("SAFE", currentValue, difference);
     setSafe();
   }
+
+  previousSensorValue = currentValue;
+  updateBuzzerControl();
+
+  delay(300);
 }
