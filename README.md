@@ -29,6 +29,13 @@ The circuit connects the MQ2 sensor, LCD1602 screen, LED, and buzzer to the Ardu
 
 ![Circuit Diagram](assets/schematic_diagram.png)
 
+## Final Model
+
+<div style="text-align: center;">
+  <img src="assets/finalModel_1.jpg" width="49%" />
+  <img src="assets/finalModel_2.jpg" width="49%" />
+</div>
+
 ### Credits
 
 - This project followed the YouTube Tutorial: [MQ2 sensor with Arduino UNO](https://www.youtube.com/watch?v=hSYCt7LrYxQ)

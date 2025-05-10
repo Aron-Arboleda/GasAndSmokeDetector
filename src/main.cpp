@@ -13,7 +13,7 @@ LCD_I2C lcd(0x27);
 int previousSensorValue = 0;
 
 enum Thresholds {
-  SAFE_THRESHOLD = 100,
+  SAFE_THRESHOLD = 90,
   MODERATE_THRESHOLD = 400,
   DIFFERENCE_THRESHOLD = 7
 };
@@ -137,9 +137,9 @@ void setup() {
 
 void loop() {
   int currentValue = analogRead(Sensor);
-  int difference = currentValue - previousSensorValue;
-
   showValueOnLCD(currentValue);
+  
+  int difference = currentValue - previousSensorValue;
   boolean gasDetected = checkForGas(currentValue, difference);
 
   if (gasDetected) {
